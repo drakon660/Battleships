@@ -1,69 +1,116 @@
+using Ardalis.GuardClauses;
+
 namespace Battleships;
 
 public class BattleshipBoard
 {
     private readonly ICoordinatesGenerator _coordinatesGenerator;
     private readonly int Size = 10;
-    private readonly Dictionary<int[], WarshipWithHits> _warships = new();
-    public IReadOnlyDictionary<int[], WarshipWithHits> Warships => _warships.AsReadOnly();
-
+    private readonly Dictionary<int, WarshipState> _warshipsMap = new();
+    public IReadOnlyDictionary<int, WarshipState> WarshipsMap => _warshipsMap.AsReadOnly();
+    public IEnumerable<IWarship> Warships => _warshipsMap.Select(x => x.Value.Warship);
+ 
     public BattleshipBoard(ICoordinatesGenerator coordinatesGenerator)
     {
         _coordinatesGenerator = coordinatesGenerator;
     }
 
-    public void AddShip(IWarship warship, char column, int row, Direction direction)
-        => AddShip(warship, (int)column, row, direction);
+    // public void AddShip(IWarship warship, char column, int row, Direction direction)
+    //     => AddShip(warship, (int)column, row, direction);
+
+    public void Generate()
+    {
+        if (!Warships.Any())
+        {
+            var startingPoint = _coordinatesGenerator.Generate();
+
+            var destroyer = Destroyer.Create("Regan");
+            
+            Move(ref startingPoint.column, ref startingPoint.row, startingPoint.Direction, destroyer.Length);
+            
+            AddShip(destroyer, startingPoint.column, startingPoint.row, startingPoint.Direction);
+        }
+    }
+    
+    private void Move(ref int column, ref int row, Direction direction, int length)
+    {
+        if (direction == Direction.East)
+        {
+            int difference = Size - column;
+            if (difference < length)
+                column -= (length - difference) - 1;
+        }
+        else
+        {
+            int difference = Size - row;
+            if (difference < length)
+                row -= (length - difference) - 1;
+        }
+    }
 
     public void AddShip(IWarship ship, int column, int row, Direction direction)
     {
-        int position = (row - 1) * Size + column;
-
+        int position = CalculateTargetPoint(column, row);
+        
         if (direction == Direction.East)
         {
-            int[] positions = Enumerable.Range(position, ship.Length).ToArray();
-            _warships.Add(positions, WarshipWithHits.Create(ship, positions.Aggregate((x, y) => x + y)));
+            var positions = Enumerable.Range(position, ship.Length).ToList();
+            var warshipState = WarshipState.Create(ship, positions);
+            foreach (var positionValue in positions)
+            {
+                _warshipsMap.Add(positionValue, warshipState);
+            }
         }
 
         if (direction == Direction.South)
         {
-            int[] positions = Enumerable.Range(position, ship.Length).Select(x => x + Size).ToArray();
-            _warships.Add(positions, WarshipWithHits.Create(ship, positions.Aggregate((x, y) => x + y)));
+            var positions = new List<int> { position };
+            for (int i = 1; i < ship.Length; i++)
+                positions.Add(positions[i-1] + 10);
+            
+            var warshipState = WarshipState.Create(ship, positions);
+            foreach (var positionValue in positions)
+            {
+                _warshipsMap.Add(positionValue, warshipState);
+            }
         }
     }
 
-    private int FindPosition(int column, int row) => (row - 1) * Size + column;
+    private int CalculateTargetPoint(int column, int row) => (row - 1) * Size + column;
 
     public FireResult Fire(int column, int row)
     {
-        int position = FindPosition(column, row);
+        int position = CalculateTargetPoint(column, row);
 
-        foreach (var warshipAndHitCount in _warships)
-        {
-            bool positionFound = Array.IndexOf(warshipAndHitCount.Key, position) != -1;
-            if (!positionFound) continue;
-            warshipAndHitCount.Value.DecreaseSumHitPosition(position);
+        if (!_warshipsMap.TryGetValue(position, out var warshipState)) 
+            return FireResult.Misses;
+       
+        warshipState.Damage(position);
 
-            return warshipAndHitCount.Value.SumHitPosition == 0 ? FireResult.Sinks : FireResult.Shots;
-        }
-
-        return FireResult.Misses;
+        return warshipState.IsDestroyed ? FireResult.Sinks : FireResult.Shots;
     }
 }
 
-public sealed class WarshipWithHits
+public struct WarshipState
 {
-    private IWarship Warship { get; }
-    public int SumHitPosition { get; private set; }
+    public IWarship Warship { get; }
+    private readonly List<int> _placePoints; 
+    public bool IsDestroyed => _placePoints.Sum(x => x) == 0;
 
-    private WarshipWithHits(IWarship warship, int sumHitPosition)
+    // private WarshipState()
+    // {
+    //         
+    // }
+    //
+    
+    private WarshipState(IWarship warship, List<int> placePoints)
     {
         Warship = warship;
-        SumHitPosition = sumHitPosition;
+        _placePoints = placePoints;
     }
+    
+    public void Damage(int placePoint) => _placePoints.Remove(placePoint);
 
-    public void DecreaseSumHitPosition(int value) => SumHitPosition -= value;
-
-    public static WarshipWithHits Create(IWarship warship, int sumHitPosition)
-        => new WarshipWithHits(warship, sumHitPosition);
+    public static WarshipState Create(IWarship warship, List<int> placePoints) =>
+        new WarshipState(warship, placePoints);
 }
