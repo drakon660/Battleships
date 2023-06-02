@@ -8,30 +8,61 @@ public class BattleshipBoard
     private readonly int Size = 10;
     private readonly Dictionary<int, WarshipState> _warshipsMap = new();
     public IReadOnlyDictionary<int, WarshipState> WarshipsMap => _warshipsMap.AsReadOnly();
-    public IEnumerable<IWarship> Warships => _warshipsMap.Select(x => x.Value.Warship);
- 
+    public IEnumerable<IWarship> Warships => _warshipsMap.Select(x => x.Value.Warship).Distinct();
+
     public BattleshipBoard(ICoordinatesGenerator coordinatesGenerator)
     {
         _coordinatesGenerator = coordinatesGenerator;
     }
-
-    // public void AddShip(IWarship warship, char column, int row, Direction direction)
-    //     => AddShip(warship, (int)column, row, direction);
 
     public void Generate()
     {
         if (!Warships.Any())
         {
             var startingPoint = _coordinatesGenerator.Generate();
+            var regan = Destroyer.Create("Regan");
+            Move(ref startingPoint.column, ref startingPoint.row, startingPoint.Direction, regan.Length);
+            AddShip(regan, startingPoint.column, startingPoint.row, startingPoint.Direction);
+        }
+        else
+        {
+            var kennedy = Destroyer.Create("Kennedy");
+            var kennedyCodes = FindFreeSpace(kennedy.Length);
+            AddShip(kennedy, kennedyCodes);
 
-            var destroyer = Destroyer.Create("Regan");
-            
-            Move(ref startingPoint.column, ref startingPoint.row, startingPoint.Direction, destroyer.Length);
-            
-            AddShip(destroyer, startingPoint.column, startingPoint.row, startingPoint.Direction);
+            var obama = Battleship.Create("Obama");
+            var obamaCodes = FindFreeSpace(obama.Length);
+            AddShip(kennedy, obamaCodes);
         }
     }
-    
+
+    public List<int> FindFreeSpace(int length)
+    {
+        bool notFoundSpace;
+        var loopIterator = 0;
+        List<int> codes;
+        do
+        {
+            var startingPoint = _coordinatesGenerator.Generate();
+            Move(ref startingPoint.column, ref startingPoint.row, startingPoint.Direction, length);
+            codes = GenerateMapCodes(startingPoint.column, startingPoint.row, length,
+                startingPoint.Direction);
+
+            notFoundSpace = codes.Any(code => _warshipsMap.ContainsKey(code));
+
+            loopIterator++;
+
+            if (loopIterator == 100)
+                break;
+        } while (notFoundSpace);
+
+        return codes;
+    }
+
+    public List<int> BoundriesFromCodes(List<int> codes)
+    {
+    }
+
     private void Move(ref int column, ref int row, Direction direction, int length)
     {
         if (direction == Direction.East)
@@ -48,10 +79,71 @@ public class BattleshipBoard
         }
     }
 
+    public void AddShip(IWarship ship, List<int> positions)
+    {
+        try
+        {
+            var warshipState = WarshipState.Create(ship, positions);
+            foreach (var positionValue in positions)
+            {
+                _warshipsMap.Add(positionValue, warshipState);
+            }
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            throw;
+        }
+    }
+
+    public List<int> GenerateMapCodes(int column, int row, int length, Direction direction)
+    {
+        int position = CalculateTargetPoint(column, row);
+
+        List<int> positions = new List<int>();
+
+        if (direction == Direction.East)
+            positions = Enumerable.Range(position, length).ToList();
+
+        if (direction == Direction.South)
+        {
+            positions = new List<int> { position };
+
+            for (int i = 1; i < length; i++)
+                positions.Add(positions[i - 1] + 10);
+        }
+
+        return positions;
+    }
+
+    public List<int> GenerateMapCodes(string positionToPlace, int length, Direction direction)
+    {
+        var stringToColumnRow = StringToColumnRow(positionToPlace);
+        int position = CalculateTargetPoint(stringToColumnRow.Column, stringToColumnRow.Row);
+
+        List<int> positions = new List<int>();
+
+        if (direction == Direction.East)
+            positions = Enumerable.Range(position, length).ToList();
+
+        if (direction == Direction.South)
+        {
+            positions = new List<int> { position };
+
+            for (int i = 1; i < length; i++)
+                positions.Add(positions[i - 1] + 10);
+        }
+
+        return positions;
+    }
+
+    public void AddShip(IWarship ship, string positionToPlace, Direction direction) =>
+        AddShip(ship, GenerateMapCodes(positionToPlace, ship.Length, direction));
+    
     public void AddShip(IWarship ship, int column, int row, Direction direction)
     {
         int position = CalculateTargetPoint(column, row);
-        
+
         if (direction == Direction.East)
         {
             var positions = Enumerable.Range(position, ship.Length).ToList();
@@ -66,8 +158,8 @@ public class BattleshipBoard
         {
             var positions = new List<int> { position };
             for (int i = 1; i < ship.Length; i++)
-                positions.Add(positions[i-1] + 10);
-            
+                positions.Add(positions[i - 1] + 10);
+
             var warshipState = WarshipState.Create(ship, positions);
             foreach (var positionValue in positions)
             {
@@ -78,13 +170,30 @@ public class BattleshipBoard
 
     private int CalculateTargetPoint(int column, int row) => (row - 1) * Size + column;
 
+    public (int Column, int Row) StringToColumnRow(string coordinates)
+    {
+        int difference = 'A' - 1;
+
+        int column = coordinates[0] - difference;
+        int row = coordinates[1];
+
+        return (column, row);
+    }
+
+    public FireResult Fire(string positionToHit)
+    {
+        var stringToColumnRow = StringToColumnRow(positionToHit);
+
+        return Fire(stringToColumnRow.Column, stringToColumnRow.Row);
+    }
+
     public FireResult Fire(int column, int row)
     {
         int position = CalculateTargetPoint(column, row);
 
-        if (!_warshipsMap.TryGetValue(position, out var warshipState)) 
+        if (!_warshipsMap.TryGetValue(position, out var warshipState))
             return FireResult.Misses;
-       
+
         warshipState.Damage(position);
 
         return warshipState.IsDestroyed ? FireResult.Sinks : FireResult.Shots;
@@ -94,7 +203,7 @@ public class BattleshipBoard
 public struct WarshipState
 {
     public IWarship Warship { get; }
-    private readonly List<int> _placePoints; 
+    private readonly List<int> _placePoints;
     public bool IsDestroyed => _placePoints.Sum(x => x) == 0;
 
     // private WarshipState()
@@ -102,13 +211,13 @@ public struct WarshipState
     //         
     // }
     //
-    
+
     private WarshipState(IWarship warship, List<int> placePoints)
     {
         Warship = warship;
         _placePoints = placePoints;
     }
-    
+
     public void Damage(int placePoint) => _placePoints.Remove(placePoint);
 
     public static WarshipState Create(IWarship warship, List<int> placePoints) =>

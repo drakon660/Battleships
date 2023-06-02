@@ -7,7 +7,7 @@ public class StandardCoordinatesGenerator : ICoordinatesGenerator
     private readonly int _rowMin;
     private readonly int _rowMax;
 
-    public StandardCoordinatesGenerator(int columnMin = 65, int columnMax = 74, int rowMin = 1, int rowMax = 10)
+    public StandardCoordinatesGenerator(int columnMin = 1, int columnMax = 10, int rowMin = 1, int rowMax = 10)
     {
         _columnMin = columnMin;
         _columnMax = columnMax;

@@ -70,6 +70,26 @@ public class BattleshipBoardTests
     }
 
     [Fact]
+    public void Check_Generate()
+    {
+        for (var i = 0; i < 100; i++)
+        {
+            var battleshipBoard = new BattleshipBoard(new StandardCoordinatesGenerator());
+            battleshipBoard.Generate();
+            battleshipBoard.Generate();    
+        }
+    }
+    
+    [Fact]
+    public void Check_If_Fire_Can_Hit_String_Coordinates_The_Ship()
+    {
+        var battleshipBoard = new BattleshipBoard(new StandardCoordinatesGenerator());
+        battleshipBoard.AddShip(Battleship.Create("Kwasniewski"),"D5", Direction.East);
+        var result = battleshipBoard.Fire("F5");
+        result.Should().Be(FireResult.Shots);
+    }
+    
+    [Fact]
     public void Check_If_Fire_Can_Miss_The_Ship()
     {
         var battleshipBoard = new BattleshipBoard(new StandardCoordinatesGenerator());
@@ -77,7 +97,7 @@ public class BattleshipBoardTests
         var result = battleshipBoard.Fire(1, 3);
         result.Should().Be(FireResult.Misses);
     }
-    
+
     [Fact]
     public void Check_If_Fire_Can_Hit_The_Ship()
     {
