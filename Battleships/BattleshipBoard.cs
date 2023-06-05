@@ -59,8 +59,26 @@ public class BattleshipBoard
         return codes;
     }
 
-    public List<int> BoundriesFromCodes(List<int> codes)
+    public List<int> BoundariesFromCodes(List<int> codes)
     {
+        List<int> boundaries = new List<int>();
+        int minValue = codes.First();
+        int maxValue = codes.Last();
+        
+        int lowerBound = --minValue;
+        int upperBound = ++maxValue;
+        
+        int count = codes.Count + 2;
+        
+        var lowerBoundaries = Enumerable.Range(lowerBound - Size, count);
+        var upperBoundaries = Enumerable.Range(upperBound + Size - (codes.Count + 1), count);
+        
+        boundaries.AddRange(lowerBoundaries);
+        boundaries.AddRange(upperBoundaries);
+        boundaries.Add(minValue);
+        boundaries.Add(maxValue);
+        
+        return boundaries;
     }
 
     private void Move(ref int column, ref int row, Direction direction, int length)
@@ -96,6 +114,49 @@ public class BattleshipBoard
         }
     }
 
+    public (List<int> Codes, List<int> Boundaries) GenerateMapCodesWithBoundaries(int column, int row, int length, Direction direction)
+    {
+        int position = CalculateTargetPoint(column, row);
+
+        List<int> codes = new List<int>();
+        List<int> boundaries = new List<int>();
+
+        if (direction == Direction.East)
+            codes = Enumerable.Range(position, length).ToList();
+
+        if (direction == Direction.South)
+        {
+            codes = new List<int> { position };
+
+            for (int i = 1; i < length; i++)
+                codes.Add(codes[i - 1] + 10);
+        }
+        
+        int lowerBound = codes.First();
+        int upperBound = codes.Last();
+        
+        if (row == 1)
+        {
+            int count = codes.Count;
+
+            if (column > 1 && column < 10)
+            {
+                count++;
+                lowerBound--;
+            }
+
+            var upperBoundaries = Enumerable.Range(lowerBound, count);
+            boundaries.AddRange(upperBoundaries);
+            
+            if (column == Size)
+            {
+                
+            }
+        }
+
+        return (codes, boundaries);
+    }
+    
     public List<int> GenerateMapCodes(int column, int row, int length, Direction direction)
     {
         int position = CalculateTargetPoint(column, row);

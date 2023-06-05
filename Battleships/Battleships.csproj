@@ -11,4 +11,10 @@
       <PackageReference Include="CSharpFunctionalExtensions" Version="2.39.0" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Compile Update="Battleship.cs">
+        <DependentUpon>BattleshipBoard.cs</DependentUpon>
+      </Compile>
+    </ItemGroup>
+
 </Project>
