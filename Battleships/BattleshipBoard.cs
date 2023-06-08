@@ -134,24 +134,24 @@ public class BattleshipBoard
         
         int lowerBound = codes.First();
         int upperBound = codes.Last();
-        
+        int count = codes.Count;
+
+        if (column > 1)
+        {
+            lowerBound--;
+            upperBound--;
+        }
+
         if (row == 1)
         {
-            int count = codes.Count;
-
             if (column > 1 && column < 10)
             {
                 count++;
                 lowerBound--;
             }
-
-            var upperBoundaries = Enumerable.Range(lowerBound, count);
-            boundaries.AddRange(upperBoundaries);
             
-            if (column == Size)
-            {
-                
-            }
+            var upperBoundaries = Enumerable.Range(lowerBound + 10, ++count);
+            boundaries.AddRange(upperBoundaries);
         }
 
         return (codes, boundaries);

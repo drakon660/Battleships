@@ -206,4 +206,15 @@ public class BattleshipBoardTests
             1,7, 11,12,13,14,15,16,17
         });
     }
+    
+    [Fact]
+    public void Check_If_Top_Codes_With_Boundaries_Are_CalculatedSuccessFully()
+    {
+        var battleshipBoard = new BattleshipBoard(new StandardCoordinatesGenerator());
+        var (codes, boundaries) = battleshipBoard.GenerateMapCodesWithBoundaries(1,1, 5, Direction.East);
+        boundaries.Should().BeEquivalentTo(new List<int>()
+        {
+            6, 11,12,13,14,15,16
+        });
+    }
 }
